@@ -1,0 +1,506 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 15,
+              "unit": "minutes"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "https://drive.google.com/drive/u/0/folders/1NOqAw9e4XCcWcvKuQoS6jBSjT7q5TAdY",
+          "mode": "url"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -944,
+        -432
+      ],
+      "id": "d00d50b4-4503-47a7-bc51-249f6238f830",
+      "name": "Google Drive Trigger",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "d9dCOwhZgTei84Fm",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -752,
+        -432
+      ],
+      "id": "9b5e6288-dec7-4f9a-9c37-fa12b7d4b1f1",
+      "name": "Download file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "d9dCOwhZgTei84Fm",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/audio/transcriptions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "={{ $binary.data }}"
+            },
+            {
+              "name": "model",
+              "value": "whisper-large-v3"
+            },
+            {
+              "name": "language",
+              "value": "ta"
+            },
+            {
+              "name": "response_format",
+              "value": "text"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -544,
+        -432
+      ],
+      "id": "515e86ce-e26d-42e0-9e2a-1a9981a4282b",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "d0IgBRO6EDlUC6le",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"temperature\": 0,\n  \"response_format\": { \"type\": \"json_object\" },\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a booking extraction assistant for a construction equipment leasing business in Tamil Nadu, India. Extract ONLY business booking information from the transcript. Ignore all greetings and personal talk. Return ONLY valid JSON, nothing else. Today's date is {{ $now.toFormat('yyyy-MM-dd') }}. Equipment types: JCB, Crane, Excavator, Dumper, Scaffolding. For Scaffolding, extract square_feet. If a field is not mentioned, return null. If unsure about a field, add it to ambiguous_fields.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Extract booking data from this transcript and return JSON with these fields: is_business_call (true/false), confidence (0-100), customer_name, customer_phone, equipment_type, quantity, square_feet (only for scaffolding), start_date (YYYY-MM-DD), end_date (YYYY-MM-DD), daily_rate, advance_amount, site_location, ambiguous_fields (array), notes.\\n\\nTranscript:\\n{{ $json.data }}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -336,
+        -432
+      ],
+      "id": "fbb3525b-e3f2-41c3-be4e-919e0f680e4b",
+      "name": "HTTP Request1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "d0IgBRO6EDlUC6le",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1CMKCvZWekYa3-rIZ1mdXz5GYhJNzIIhNqp-hCH--qe8",
+          "mode": "list",
+          "cachedResultName": "Master_Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CMKCvZWekYa3-rIZ1mdXz5GYhJNzIIhNqp-hCH--qe8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 677183618,
+          "mode": "list",
+          "cachedResultName": "Bookings",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CMKCvZWekYa3-rIZ1mdXz5GYhJNzIIhNqp-hCH--qe8/edit#gid=677183618"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Booking_ID": "={{ 'B' + $now.toMillis() }}",
+            "Created_At": "={{ $now.toFormat('yyyy-MM-dd HH:mm') }}",
+            "Source": "Call",
+            "Customer_Name": "={{ JSON.parse($json.choices[0].message.content).customer_name }}",
+            "Customer_Phone": "={{ JSON.parse($json.choices[0].message.content).customer_phone }}",
+            "Equipment_Type": "={{ JSON.parse($json.choices[0].message.content).equipment_type }}",
+            "Quantity": "={{ JSON.parse($json.choices[0].message.content).quantity }}",
+            "Square_Feet": "={{ JSON.parse($json.choices[0].message.content).square_feet }}",
+            "Start_Date": "={{ JSON.parse($json.choices[0].message.content).start_date }}",
+            "End_Date": "={{ JSON.parse($json.choices[0].message.content).end_date }}",
+            "Daily_Rate": "={{ JSON.parse($json.choices[0].message.content).daily_rate }}",
+            "Advance_Paid": "={{ JSON.parse($json.choices[0].message.content).advance_amount }}",
+            "Payment_Status": "Pending",
+            "Review_Status": "Pending",
+            "AI_Confidence": "={{ JSON.parse($json.choices[0].message.content).confidence }}",
+            "Notes": "={{ JSON.parse($json.choices[0].message.content).notes }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Booking_ID",
+              "displayName": "Booking_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Created_At",
+              "displayName": "Created_At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Source",
+              "displayName": "Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Customer_Name",
+              "displayName": "Customer_Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Customer_Phone",
+              "displayName": "Customer_Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Equipment_Type",
+              "displayName": "Equipment_Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Quantity",
+              "displayName": "Quantity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Square_Feet",
+              "displayName": "Square_Feet",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Start_Date",
+              "displayName": "Start_Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "End_Date",
+              "displayName": "End_Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Return_Date",
+              "displayName": "Return_Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Days_Booked",
+              "displayName": "Days_Booked",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Daily_Rate",
+              "displayName": "Daily_Rate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Total_Amount",
+              "displayName": "Total_Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Advance_Paid",
+              "displayName": "Advance_Paid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Balance_Due",
+              "displayName": "Balance_Due",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Payment_Status",
+              "displayName": "Payment_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Review_Status",
+              "displayName": "Review_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AI_Confidence",
+              "displayName": "AI_Confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -80,
+        -432
+      ],
+      "id": "f91a7dd2-5f31-4f56-a207-abf3c57b4dda",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "j0c4C8cQvpNcgFD5",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "7643642153",
+        "text": "=📋 *NEW BOOKING DETECTED*\n\n👤 Customer: {{ JSON.parse($('HTTP Request1').item.json.choices[0].message.content).customer_name }}\n📞 Phone: {{ JSON.parse($('HTTP Request1').item.json.choices[0].message.content).customer_phone }}\n🚜 Equipment: {{ JSON.parse($('HTTP Request1').item.json.choices[0].message.content).equipment_type }}\n📅 Start: {{ JSON.parse($('HTTP Request1').item.json.choices[0].message.content).start_date }}\n📅 End: {{ JSON.parse($('HTTP Request1').item.json.choices[0].message.content).end_date }}\n💰 Rate: {{ JSON.parse($('HTTP Request1').item.json.choices[0].message.content).daily_rate }}\n💵 Advance: {{ JSON.parse($('HTTP Request1').item.json.choices[0].message.content).advance_amount }}\n🎯 Confidence: {{ JSON.parse($('HTTP Request1').item.json.choices[0].message.content).confidence }}%\n⚠️ Notes: {{ JSON.parse($('HTTP Request1').item.json.choices[0].message.content).notes }}\n\n✅ Check Google Sheets to CONFIRM or FLAG this booking.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        160,
+        -432
+      ],
+      "id": "213c915d-5b7f-4290-80ae-47c835119017",
+      "name": "Send a text message",
+      "webhookId": "0f1f1656-8b29-487a-aa3e-3bff010b242d",
+      "credentials": {
+        "telegramApi": {
+          "id": "oFdfqMgmgAwag4C1",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "6227852236",
+        "text": "=📋 *NEW BOOKING DETECTED*\n\n👤 Customer: {{ JSON.parse($('HTTP Request1').item.json.choices[0].message.content).customer_name }}\n📞 Phone: {{ JSON.parse($('HTTP Request1').item.json.choices[0].message.content).customer_phone }}\n🚜 Equipment: {{ JSON.parse($('HTTP Request1').item.json.choices[0].message.content).equipment_type }}\n📅 Start: {{ JSON.parse($('HTTP Request1').item.json.choices[0].message.content).start_date }}\n📅 End: {{ JSON.parse($('HTTP Request1').item.json.choices[0].message.content).end_date }}\n💰 Rate: {{ JSON.parse($('HTTP Request1').item.json.choices[0].message.content).daily_rate }}\n💵 Advance: {{ JSON.parse($('HTTP Request1').item.json.choices[0].message.content).advance_amount }}\n🎯 Confidence: {{ JSON.parse($('HTTP Request1').item.json.choices[0].message.content).confidence }}%\n⚠️ Notes: {{ JSON.parse($('HTTP Request1').item.json.choices[0].message.content).notes }}\n\n✅ Check Google Sheets to CONFIRM or FLAG this booking.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        160,
+        -192
+      ],
+      "id": "bc9e29f8-85aa-49d1-a781-e44eedf12305",
+      "name": "Send a text message1",
+      "webhookId": "fb162de1-d6ec-42b8-9443-78907e6f6db1",
+      "credentials": {
+        "telegramApi": {
+          "id": "oFdfqMgmgAwag4C1",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message1": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "a1024b47-945a-4f2b-adc0-f97306008675",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ddcd19cbb82ba16b493615d0317880f7889ad264376dcc86f299bfe190e26d22"
+  },
+  "id": "s2YhK2685hp4WHFK",
+  "tags": []
+}
